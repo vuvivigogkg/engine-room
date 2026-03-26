@@ -1,0 +1,28 @@
+on: [push, workflow_dispatch]
+jobs:
+  stealth-sprint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup WARP
+        run: |
+          sudo apt-get update && sudo apt-get install -y wireguard-tools
+          curl -L "https://github.com" -o wgcf
+          chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate
+          sudo cp wgcf-profile.conf /etc/wireguard/wg0.conf && sudo wg-quick up wg0
+      - name: Run Bot
+        run: |
+          npm install playwright-extra playwright-stealth
+          xvfb-run node -e "
+          const { chromium } = require(\"playwright-extra\");
+          const stealth = require(\"playwright-stealth\")();
+          chromium.use(stealth);
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            await page.goto(\"https://netlify.app\", { waitUntil: \"networkidle\" });
+            if (Math.random() < 0.03) {
+              await page.mouse.click(100, 100);
+              await page.waitForTimeout(15000);
+            }
+            await browser.close();
+          })();" 
