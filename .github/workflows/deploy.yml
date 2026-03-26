@@ -6,7 +6,7 @@ jobs:
       - name: Setup WARP
         run: |
           sudo apt-get update && sudo apt-get install -y wireguard-tools
-          curl -L "https://github.com" -o wgcf
+          curl -L "https://github.com/ViRb3/wgcf/releases/download/v2.2.30/wgcf_2.2.30_linux_amd64" -o wgcf
           chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate
           sudo cp wgcf-profile.conf /etc/wireguard/wg0.conf && sudo wg-quick up wg0
       - name: Run Bot
@@ -19,7 +19,7 @@ jobs:
           (async () => {
             const browser = await chromium.launch();
             const page = await browser.newPage();
-            await page.goto(\"https://netlify.app\", { waitUntil: \"networkidle\" });
+            await page.goto(\"https://radiant-jelly.netlify.app/\", { waitUntil: \"networkidle\" });
             if (Math.random() < 0.03) {
               await page.mouse.click(100, 100);
               await page.waitForTimeout(15000);
