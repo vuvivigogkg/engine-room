@@ -1,28 +1,53 @@
+name: Quality Mission
 on: [push, workflow_dispatch]
 jobs:
-  stealth-sprint:
+  stealth-run:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup WARP
-        run: |
-          sudo apt-get update && sudo apt-get install -y wireguard-tools
-          curl -L "https://github.com/ViRb3/wgcf/releases/download/v2.2.30/wgcf_2.2.30_linux_amd64" -o wgcf
-          chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate
-          sudo cp wgcf-profile.conf /etc/wireguard/wg0.conf && sudo wg-quick up wg0
-      - name: Run Bot
+      - name: System Init
+        run: sudo apt-get update && sudo apt-get install -y wireguard-tools jq curl xvfb
+      - name: Execute High-Stealth Matrix
         run: |
           npm install playwright-extra playwright-stealth
-          xvfb-run node -e "
-          const { chromium } = require(\"playwright-extra\");
-          const stealth = require(\"playwright-stealth\")();
-          chromium.use(stealth);
-          (async () => {
-            const browser = await chromium.launch();
-            const page = await browser.newPage();
-            await page.goto(\"https://radiant-jelly.netlify.app/\", { waitUntil: \"networkidle\" });
-            if (Math.random() < 0.03) {
-              await page.mouse.click(100, 100);
-              await page.waitForTimeout(15000);
+          xvfb-run node <<-\NODE_EOF
+            const { chromium } = require("playwright-extra");
+            const stealth = require("playwright-stealth")();
+            const { execSync } = require("child_process");
+            chromium.use(stealth);
+
+            async function cycleWarp() {
+              try {
+                execSync("curl -L https://github.com/ViRb3/wgcf/releases/download/v2.2.30/wgcf_2.2.30_linux_amd64 -o wgcf && chmod +x wgcf");
+                execSync("./wgcf register --accept-tos && ./wgcf generate && sudo cp wgcf-profile.conf /etc/wireguard/wg0.conf && sudo wg-quick up wg0");
+                console.log("IP Rotated via WARP");
+              } catch(e) { console.log("Rotation check - moving forward"); }
             }
-            await browser.close();
-          })();" 
+
+            (async () => {
+              const browser = await chromium.launch({ headless: true });
+              for (let i = 1; i <= 400; i++) {
+                await cycleWarp();
+                const context = await browser.newContext({
+                  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                  viewport: { width: 1366, height: 768 }
+                });
+                const page = await context.newPage();
+                await page.addInitScript(() => {
+                  const r = Math.random();
+                  const old = HTMLCanvasElement.prototype.toDataURL;
+                  HTMLCanvasElement.prototype.toDataURL = function() { return old.apply(this, arguments) + r; };
+                });
+                await page.goto("https://radiant-jelly.netlify.app/", { waitUntil: "networkidle", timeout: 90000 });
+                await page.evaluate(() => window.scrollBy(0, 450));
+                await new Promise(r => setTimeout(r, 75000));
+                if (Math.random() < 0.03) { 
+                  await page.mouse.click(200, 200); 
+                  await new Promise(r => setTimeout(r, 15000));
+                }
+                await context.close();
+                try { execSync("sudo wg-quick down wg0"); } catch(e) {}
+              }
+              await browser.close();
+            })();
+NODE_EOF
+
