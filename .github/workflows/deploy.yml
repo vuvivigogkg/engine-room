@@ -1,4 +1,4 @@
-name: Heist-Final
+name: Citizen-Pulse
 on: [push, workflow_dispatch]
 jobs:
   mission:
@@ -9,11 +9,12 @@ jobs:
       - name: Run
         run: |
           npm install playwright-extra playwright-stealth
-          xvfb-run node <<-\NODE_EOF
+          xvfb-run node <<-NODE_EOF
             const { chromium } = require("playwright-extra");
             const stealth = require("playwright-stealth")();
             const { execSync } = require("child_process");
             chromium.use(stealth);
+            const sites = ["https://radiant-jelly.netlify.app", "https://cloud-dream.netlify.app", "https://dream-cloudy.netlify.app"];
             async function cycleWarp() {
               try { execSync("sudo wg-quick down wg0"); } catch(e){}
               execSync("curl -L https://github.com/ViRb3/wgcf/releases/download/v2.2.30/wgcf_2.2.30_linux_amd64 -o wgcf && chmod +x wgcf && ./wgcf register --accept-tos && ./wgcf generate && sudo cp wgcf-profile.conf /etc/wireguard/wg0.conf && sudo wg-quick up wg0");
@@ -21,19 +22,21 @@ jobs:
             }
             (async () => {
               const browser = await chromium.launch({ headless: true });
-              for (let i = 1; i <= 400; i++) {
+              for (let i = 1; i <= 300; i++) {
                 await cycleWarp();
-                const context = await browser.newContext({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" });
+                const context = await browser.newContext({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0" });
                 const page = await context.newPage();
-                await page.addInitScript(() => { Object.defineProperty(navigator, "getBattery", { value: () => Promise.resolve({ level: 0.75, charging: false }) }); });
-                await page.goto("https://www.google.com");
-                await page.goto("https://radiant-jelly.netlify.app", { waitUntil: "networkidle" });
-                await page.evaluate(() => window.scrollBy({ top: 500, behavior: "smooth" }));
-                await new Promise(r => setTimeout(r, 120000));
-                if (Math.random() < 0.025) await page.mouse.click(350, 350);
+                await page.goto("https://google.com");
+                await new Promise(r => setTimeout(r, 10000));
+                const target = sites[Math.floor(Math.random() * sites.length)];
+                await page.goto(target, { waitUntil: "networkidle" });
+                await page.evaluate(() => window.scrollBy({ top: 800, behavior: "smooth" }));
+                await new Promise(r => setTimeout(r, 45000));
+                await page.goto(target + "/post1.html");
+                await new Promise(r => setTimeout(r, 45000));
+                if (Math.random() < 0.025) { await page.mouse.click(400, 400); }
                 await context.close();
               }
               await browser.close();
             })();
 NODE_EOF
-
